@@ -1,9 +1,8 @@
 import json
+import os
 import subprocess
 from pathlib import Path
 from io import StringIO
-import time
-from googleapiclient.http import MediaFileUpload
 
 
 class VideoProcessor:
@@ -42,10 +41,10 @@ class VideoProcessor:
         )
         print("Download successful!")
 
-        for line in process.stdout:
+        for line in process.stdout:  # type: ignore
             print(line, end="")
 
-        process.stdout.close()
+        process.stdout.close()  # type: ignore
         process.wait()
 
     @staticmethod
@@ -56,11 +55,11 @@ class VideoProcessor:
             outpath = Path(file_path).parent / f"{file_path_stem}_edited.mp4"
 
         v1_path = file_path / f".{file_path_stem}_v1_timeline.json"
-        VideoProcessor._generate_v1(video_path, v1_path)
+        VideoProcessor._generate_v1(file_path, v1_path)
 
         overlayed_video_path = file_path / f".{file_path_stem}_overlayed_video.mp4"
         VideoProcessor._edit_add_overlay(
-            video_path=video_path,
+            video_path=file_path,
             timeline_path=v1_path,
             output_path=overlayed_video_path,
         )
@@ -73,8 +72,7 @@ class VideoProcessor:
         os.remove(v1_path)
         os.remove(overlayed_video_path)
 
-        return edited_video_path
-
+        return outpath
 
     @staticmethod
     def download_and_process(link):
@@ -106,89 +104,6 @@ class VideoProcessor:
         )
 
         return edited_video_path
-
-    @staticmethod
-    def upload(
-        youtube, file_path, title, description="", category_id="22", privacy="public"
-    ):
-        body = {
-            "snippet": {
-                "title": title,
-                "description": description,
-                "categoryId": category_id,
-            },
-            "status": {"privacyStatus": privacy},
-        }
-
-        media = MediaFileUpload(
-            file_path, chunksize=-1, resumable=True, mimetype="video/*"
-        )
-        request = youtube.videos().insert(
-            part="snippet,status", body=body, media_body=media
-        )
-
-        response = None
-        while response is None:
-            status, response = request.next_chunk()
-            if status:
-                print(f"Upload progress: {int(status.progress() * 100)}%")
-        print(f"Upload complete. Video ID: {response['id']}")
-
-        while True:
-            processing_response = (
-                youtube.videos()
-                .list(part="processingDetails", id=response["id"])
-                .execute()
-            )
-
-            processing_status = (
-                processing_response["items"][0]
-                .get("processingDetails", {})
-                .get("processingStatus", "")
-            )
-
-            print(f"Processing status: {processing_status}")
-            if processing_status == "succeeded":
-                break
-            elif processing_status == "failed":
-                raise RuntimeError("YouTube processing failed.")
-            else:
-                time.sleep(5)
-
-        return response
-
-    @staticmethod
-    def add_to_playlist(youtube, video_id, playlist_id):
-        body = {
-            "snippet": {
-                "playlistId": playlist_id,
-                "resourceId": {
-                    "kind": "youtube#video",
-                    "videoId": video_id,
-                },
-            }
-        }
-
-        request = youtube.playlistItems().insert(part="snippet", body=body)
-        response = request.execute()
-        print(f"Video added to playlist: {response['snippet']['title']}")
-        return response
-
-    def id_from_url(url):
-        if "youtube.com/live/" in url:
-            return url.split("/")[-1].split("?")[0]
-        elif "youtube.com/watch?v=" in url:
-            return url.split("v=")[-1].split("&")[0]
-        else:
-            raise ValueError("Invalid YouTube URL format")
-
-    def get_title(youtube, video_id):
-        response = youtube.videos().list(part="snippet", id=video_id).execute()
-
-        if response["items"]:
-            return response["items"][0]["snippet"]["title"]
-        else:
-            return None
 
     @staticmethod
     def _parse_json_from_text(text, outpath):
@@ -237,7 +152,7 @@ class VideoProcessor:
             bufsize=1,
         )
 
-        for line in process.stdout:
+        for line in process.stdout:  # type: ignore
             print(line, end="")
             log_buffer.write(line)
 
@@ -306,7 +221,7 @@ class VideoProcessor:
             bufsize=1,
         )
 
-        for line in process.stdout:
+        for line in process.stdout:  # type: ignore
             print(line, end="")
 
         process.wait()
@@ -338,7 +253,7 @@ class VideoProcessor:
             bufsize=1,
         )
 
-        for line in process.stdout:
+        for line in process.stdout:  # type: ignore
             print(line, end="")
 
         process.wait()
