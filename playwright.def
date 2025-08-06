@@ -1,0 +1,54 @@
+Bootstrap: docker
+From: python:3.11-slim-bookworm
+
+%files
+    ac-training-lab/src/ac_training_lab/video_editing/requirements.txt requirements.txt
+
+%post
+    apt-get update && apt-get install -y \
+        wget \
+        gnupg \
+        curl \
+        unzip \
+        git \
+        libnss3 \
+        libatk1.0-0 \
+        libatk-bridge2.0-0 \
+        libcups2 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxrandr2 \
+        libxss1 \
+        libxtst6 \
+        libx11-xcb1 \
+        libasound2 \
+        libxshmfence-dev \
+        libxext6 \
+        libxfixes3 \
+        libglib2.0-0 \
+        libgbm1 \
+        libgtk-3-0 \
+        libdrm2 \
+        libx11-6 \
+        libxcb1 \
+        libatspi2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+    pip install -r requirements.txt
+
+    # Install browser binaries
+    python -m playwright install --with-deps
+
+%environment
+    export PYTHONUNBUFFERED=1
+    export PATH=/usr/local/bin:$PATH
+
+%labels
+    Author Jonathan Woo
+    Description Python 3.11 + Playwright 1.54.0 with full browser support
+
+%runscript
+    echo "This container runs Playwright with Python. Pass your script as an argument:"
+    echo "Example: apptainer run playwright.sif myscript.py"
+    python "$@"
+
