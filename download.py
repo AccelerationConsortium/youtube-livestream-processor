@@ -1,13 +1,12 @@
-import json
 from pathlib import Path
 
 import pyotp
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
-from src.ac_training_lab.video_editing.my_secrets import (
+from progresslib import ProgressController
+from yt_utils import YoutubeUtils
+from my_secrets import (
     EMAIL,
     PASSWORD,
     TOTP_SECRET,
@@ -22,76 +21,8 @@ from src.ac_training_lab.video_editing.my_secrets import (
 totp = pyotp.TOTP(TOTP_SECRET)
 
 OUTPUT_DIR = Path(__file__).parent / "downloaded_videos"
-PROCESSED_JSON = Path(__file__).parent / "processed.json"
-
-
-def list_my_playlists(youtube):
-    playlist_ids = []
-    request = youtube.playlists().list(part="snippet", mine=True, maxResults=50)
-
-    while request:
-        response = request.execute()
-        for item in response.get("items", []):
-            playlist_id = item["id"]
-            title = item["snippet"]["title"]
-            print(f"{title}: {playlist_id}")
-            playlist_ids.append(playlist_id)
-
-        request = youtube.playlists().list_next(request, response)
-
-    return playlist_ids
-
-
-def list_videos_in_playlist(youtube, playlist_id):
-    video_ids = []
-    request = youtube.playlistItems().list(
-        part="snippet", playlistId=playlist_id, maxResults=50
-    )
-
-    while request:
-        response = request.execute()
-        for item in response["items"]:
-            video_id = item["snippet"]["resourceId"]["videoId"]
-            title = item["snippet"]["title"]
-            print(f"  {title}: {video_id}")
-            video_ids.append(video_id)
-
-        request = youtube.playlistItems().list_next(request, response)
-
-    return video_ids
-
-
-def setup_youtube_client():
-    credentials = Credentials(
-        token=YOUTUBE_TOKEN,
-        refresh_token=YOUTUBE_REFRESH_TOKEN,
-        token_uri=YOUTUBE_TOKEN_URI,
-        client_id=YOUTUBE_CLIENT_ID,
-        client_secret=YOUTUBE_CLIENT_SECRET,
-        scopes=["https://www.googleapis.com/auth/youtube.force-ssl"],
-    )
-    return build("youtube", "v3", credentials=credentials)
-
-
-def load_processed():
-    if PROCESSED_JSON.exists():
-        with open(PROCESSED_JSON, "r") as f:
-            return json.load(f)
-    return {}
-
-
-def get_pending_downloads(youtube, processed_videos, downloaded_ids):
-    all_videos = {}
-    playlist_ids = list_my_playlists(youtube)
-    for playlist_id in playlist_ids:
-        video_ids = list_videos_in_playlist(youtube, playlist_id)
-        all_videos[playlist_id] = [
-            vid
-            for vid in video_ids
-            if vid not in processed_videos.get(playlist_id, [])
-            and vid not in downloaded_ids
-        ]
-    return all_videos
+PROGRESS_FILE = Path(__file__).parent / "progress.json"
+progress_controller = ProgressController(PROGRESS_FILE)
 
 
 def login_google(page):
@@ -120,50 +51,87 @@ def login_google(page):
     page.wait_for_url("https://myaccount.google.com/?pli=1", timeout=10000)
 
 
-def download_video(page, video_id):
+def download_video(page, video: YoutubeUtils.Video):
     try:
-        print(f"Navigating to video {video_id}...")
-        page.goto(f"https://studio.youtube.com/video/{video_id}/edit/", timeout=15000)
+        print(f"Navigating to video {video.id}...")
+        page.goto(f"https://studio.youtube.com/video/{video.id}/edit/", timeout=15000)
         page.get_by_role("button", name="Options").wait_for(timeout=5000)
         page.get_by_role("button", name="Options").click()
-        print(f"Opened video {video_id} options.")
+        print(f"Opened video {video.id} options.")
 
         page.get_by_role("menuitem", name="Download").wait_for(timeout=5000)
         with page.expect_download(timeout=10000) as download_info:
             page.get_by_role("menuitem", name="Download").click()
-            print(f"Began downloading video {video_id}...")
+            print(f"Began downloading video {video.id}...")
 
         download = download_info.value
         OUTPUT_DIR.mkdir(exist_ok=True)
-        file_path = OUTPUT_DIR / download.suggested_filename
+        file_path = OUTPUT_DIR / f"{video.title}.mp4"
         download.save_as(file_path)
+
+        progress_controller.move_item("downloading", "downloaded", video.id)
         print(f"Downloaded: {file_path}")
 
     except Exception as e:
-        print(f"Failed to download video {video_id}: {e}")
-
-
-def main():
-    youtube = setup_youtube_client()
-    processed_videos = load_processed()
-    downloaded_ids = set([f.stem for f in OUTPUT_DIR.glob("*.mp4")])
-
-    pending = get_pending_downloads(youtube, processed_videos, downloaded_ids)
-    print(f"Pending downloads: {sum(len(v) for v in pending.values())}")
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        context = browser.new_context(accept_downloads=True)
-        page = context.new_page()
-
-        login_google(page)
-
-        for _, videos in pending.items():
-            for video_id in videos:
-                download_video(page, video_id)
-
-        browser.close()
+        print(f"Failed to download video {video.id}: {e}")
 
 
 if __name__ == "__main__":
-    main()
+    ytlib = YoutubeUtils(
+        youtube_token=YOUTUBE_TOKEN,
+        youtube_refresh_token=YOUTUBE_REFRESH_TOKEN,
+        youtube_token_uri=YOUTUBE_TOKEN_URI,
+        youtube_client_id=YOUTUBE_CLIENT_ID,
+        youtube_client_secret=YOUTUBE_CLIENT_SECRET,
+    )
+
+    playlists = ytlib.get_playlists()
+    all_yt_videos = []
+    for playlist in playlists:
+        videos = ytlib.list_videos_in_playlist(playlist)
+        all_yt_videos.extend(videos)
+
+    while True:
+        progress_controller.lock_file()
+        progress_log = progress_controller._load_progress_unlocked()
+        existing_video_ids = [
+            video_id
+            for status in progress_log.keys()
+            for video_id in progress_log[status].keys()
+        ]
+        video_ids_to_download = set(video.id for video in all_yt_videos) - set(
+            existing_video_ids
+        )
+        videos_to_download = [
+            video for video in all_yt_videos if video.id in video_ids_to_download
+        ]
+        if len(videos_to_download) == 0:
+            print("No more videos to download.")
+            progress_controller.unlock_file()
+            exit(0)
+        next_video = videos_to_download[0]
+        progress_controller._add_item_unlocked(
+            "downloading",
+            next_video.id,
+            ProgressController.ProgressItem(
+                original_video_name=ytlib.video_title_from_id(next_video.id),  # type: ignore
+                new_video_name=f"PROCESSED {ytlib.video_title_from_id(next_video.id)}",
+                original_playlist_name=next_video.playlist.title,
+                new_playlist_name=f"PROCESSED {next_video.playlist.title}",
+                original_video_id=next_video.id,
+                original_playlist_id=next_video.playlist.id,
+                new_playlist_id=f"PROCESSED {next_video.playlist.id}",
+            ),
+        )
+        progress_controller.unlock_file()
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=False)
+            context = browser.new_context(accept_downloads=True)
+            page = context.new_page()
+
+            login_google(page)
+
+            download_video(page, next_video.id)
+
+            browser.close()
