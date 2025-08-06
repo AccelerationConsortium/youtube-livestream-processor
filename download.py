@@ -4,7 +4,7 @@ import pyotp
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
-from progresslib import ProgressController
+from progresslib import ProgressController, ProgressState
 from yt_utils import YoutubeUtils
 from my_secrets import (
     EMAIL,
@@ -69,7 +69,9 @@ def download_video(page, video: YoutubeUtils.Video):
         file_path = OUTPUT_DIR / f"{video.title}.mp4"
         download.save_as(file_path)
 
-        progress_controller.move_item("downloading", "downloaded", video.id)
+        progress_controller.move_item(
+            ProgressState.DOWNLOADING, ProgressState.DOWNLOADED, video.id
+        )
         print(f"Downloaded: {file_path}")
 
     except Exception as e:
@@ -111,7 +113,7 @@ if __name__ == "__main__":
             exit(0)
         next_video = videos_to_download[0]
         progress_controller._add_item_unlocked(
-            "downloading",
+            ProgressState.DOWNLOADING,
             next_video.id,
             ProgressController.ProgressItem(
                 original_video_name=ytlib.video_title_from_id(next_video.id),  # type: ignore

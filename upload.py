@@ -1,5 +1,5 @@
 from pathlib import Path
-from progresslib import ProgressController
+from progresslib import ProgressController, ProgressState
 from yt_utils import YoutubeUtils
 from my_secrets import (
     YOUTUBE_CLIENT_ID,
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     while True:
         next_item = progress_controller.read_and_move_next_item(
-            "processed", "uploading"
+            ProgressState.PROCESSED, ProgressState.UPLOADING
         )
         if not next_item:
             print("No more items to upload.")
@@ -47,4 +47,6 @@ if __name__ == "__main__":
             video_properties.new_playlist_id,
         )
 
-        progress_controller.move_item("uploading", "uploaded", video_id)
+        progress_controller.move_item(
+            ProgressState.UPLOADING, ProgressState.UPLOADED, video_id
+        )

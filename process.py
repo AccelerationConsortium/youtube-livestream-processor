@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from progresslib import ProgressController
+from progresslib import ProgressController, ProgressState
 from video_processor import VideoProcessor
 
 
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     while True:
         # Acquire lock to safely read and update progress file
         next_item = progress_controller.read_and_move_next_item(
-            "downloaded", "processing"
+            ProgressState.DOWNLOADED, ProgressState.PROCESSING
         )
 
         if not next_item:
@@ -34,4 +34,6 @@ if __name__ == "__main__":
             PROCESSED_DIR / video_properties.new_video_name,
         )
 
-        progress_controller.move_item("processing", "processed", video_id)
+        progress_controller.move_item(
+            ProgressState.PROCESSING, ProgressState.PROCESSED, video_id
+        )
