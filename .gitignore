@@ -208,3 +208,5 @@ __marimo__/
 
 downloaded_videos/
 processed_videos/
+
+.vscode/
