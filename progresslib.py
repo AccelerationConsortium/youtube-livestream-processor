@@ -1,12 +1,30 @@
 import json
 from filelock import FileLock
+from enum import Enum
 from dataclasses import dataclass
+
+
+class ProgressState(str, Enum):
+    DOWNLOADING = "downloading"
+    DOWNLOADED = "downloaded"
+    PROCESSING = "processing"
+    PROCESSED = "processed"
+    UPLOADING = "uploading"
+    UPLOADED = "uploaded"
 
 
 class ProgressController:
     def __init__(self, progress_file_path):
         self.progress_file_path = progress_file_path
         self.lock = FileLock(progress_file_path.with_suffix(".lock"))
+        self.default_progress = {
+            ProgressState.DOWNLOADING: {},
+            ProgressState.DOWNLOADED: {},
+            ProgressState.PROCESSING: {},
+            ProgressState.PROCESSED: {},
+            ProgressState.UPLOADING: {},
+            ProgressState.UPLOADED: {},
+        }
 
     @dataclass
     class ProgressItem:
@@ -46,6 +64,11 @@ class ProgressController:
             )
         return dct
 
+    def reset_progress(self):
+        with self.lock:
+            with open(self.progress_file_path, "w") as f:
+                json.dump(self.default_progress, f, cls=self.CustomEncoder)
+
     def lock_file(self):
         self.lock.acquire()
 
@@ -62,7 +85,9 @@ class ProgressController:
                 return json.load(f, object_hook=self.custom_decoder)
         return {}
 
-    def move_item(self, original_state, new_state, key):
+    def move_item(
+        self, original_state: ProgressState, new_state: ProgressState, key: str
+    ):
         with self.lock:
             if self.progress_file_path.exists():
                 with open(self.progress_file_path, "r") as f:
@@ -77,7 +102,7 @@ class ProgressController:
                 json.dump(progress_data, f, cls=self.CustomEncoder)
 
     def read_and_move_next_item(
-        self, original_state, new_state
+        self, original_state: ProgressState, new_state: ProgressState
     ) -> tuple[str, ProgressItem] | None:
         with self.lock:
             if self.progress_file_path.exists():
@@ -98,11 +123,13 @@ class ProgressController:
 
         return key, value
 
-    def add_item(self, state, key, value: ProgressItem):
+    def add_item(self, state: ProgressState, key: str, value: ProgressItem):
         with self.lock:
             self._add_item_unlocked(state, key, value)
 
-    def _add_item_unlocked(self, state, key, value: ProgressItem) -> None:
+    def _add_item_unlocked(
+        self, state: ProgressState, key: str, value: ProgressItem
+    ) -> None:
         if self.progress_file_path.exists():
             with open(self.progress_file_path, "r") as f:
                 progress_data = json.load(f, object_hook=self.custom_decoder)
