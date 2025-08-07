@@ -48,7 +48,7 @@ def login_google(page):
     page.wait_for_selector('input[name="totpPin"]', timeout=5000)
     page.fill('input[name="totpPin"]', totp.now())
     page.get_by_role("button", name="Next").click()
-    page.wait_for_url("https://myaccount.google.com/?pli=1", timeout=10000)
+    page.wait_for_url("https://myaccount.google.com/?pli=1", timeout=20000)
 
 
 def download_video(page, video: YoutubeUtils.Video):
@@ -134,6 +134,6 @@ if __name__ == "__main__":
 
             login_google(page)
 
-            download_video(page, next_video.id)
+            download_video(page, next_video)
 
             browser.close()
