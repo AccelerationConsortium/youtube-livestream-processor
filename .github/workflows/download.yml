@@ -1,10 +1,8 @@
 name: Download
 
 on:
-  workflow_dispatch: 
-  push:
-    branches:
-      - mwe
+  schedule:
+    - cron: '*/2 * * * *'
 
 jobs:
   ssh-with-input:
