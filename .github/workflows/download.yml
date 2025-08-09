@@ -24,7 +24,7 @@ jobs:
       - name: SSH, send 1, run command
         run: |
           expect << 'END'
-          set timeout -1
+          set timeout 10
           spawn ssh -Y ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
           expect {
             "Passcode or option (1-1):" { send "1\r" }
