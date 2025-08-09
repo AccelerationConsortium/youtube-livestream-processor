@@ -1,0 +1,33 @@
+name: Download
+
+on:
+  workflow_dispatch: 
+  push:
+    branches:
+      - mwe
+
+jobs:
+  ssh-with-input:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Install expect
+        run: sudo apt-get install -y expect
+
+      - name: SSH, send 1, run command
+        run: |
+          expect << 'END'
+          spawn ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+          expect {
+            "Passcode or option (1-1):" { send "1\r" }
+            timeout { exit 1 }
+          }
+          interact
+          END
+
