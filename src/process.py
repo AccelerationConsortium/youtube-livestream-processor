@@ -1,11 +1,6 @@
-import json
-from filelock import FileLock
 from pathlib import Path
-
-import yaml
-
-from progresslib import ProgressController, ProgressState
-from video_processor import VideoProcessor
+from src.progresslib import ProgressController, ProgressState
+from src.video_processor import VideoProcessor
 
 
 if __name__ == "__main__":

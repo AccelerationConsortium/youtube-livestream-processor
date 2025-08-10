@@ -4,8 +4,8 @@ import pyotp
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
-from progresslib import ProgressController, ProgressState
-from yt_utils import YoutubeUtils
+from src.progresslib import ProgressController, ProgressState
+from src.yt_utils import YoutubeUtils
 from my_secrets import (
     EMAIL,
     PASSWORD,

@@ -1,5 +1,4 @@
 import json
-import os
 import subprocess
 from pathlib import Path
 from io import StringIO
@@ -202,6 +201,7 @@ class VideoProcessor:
         process = subprocess.Popen(
             [
                 "ffmpeg",
+                "-hwaccel cuda",
                 "-y",
                 "-i",
                 video_path,
