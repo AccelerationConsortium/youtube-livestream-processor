@@ -127,6 +127,22 @@ class YoutubeUtils:
 
         return response
 
+    def create_playlist(self, title, description="", privacy="public"):
+        body = {
+            "snippet": {
+                "title": title,
+                "description": description,
+            },
+            "status": {
+                "privacyStatus": privacy,
+            },
+        }
+        request = self.youtube.playlists().insert(part="snippet,status", body=body)
+        response = request.execute()
+        print(f"Playlist '{title}' created with ID: {response['id']}")
+
+        return self.Playlist(response["id"], title)
+
     def add_to_playlist(self, video_id, playlist_id):
         body = {
             "snippet": {

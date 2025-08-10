@@ -114,7 +114,20 @@ if __name__ == "__main__":
             progress_controller.unlock_file()
             exit(0)
         next_video = videos_to_download[0]
-        progress_controller._add_item_unlocked(
+
+        # Create playlist if it doesn't exist
+        new_playlist_name = f"PROCESSED {next_video.playlist.title}"
+        existing_playlists = ytlib.get_playlists()
+        if new_playlist_name not in [playlist.title for playlist in existing_playlists]:
+            new_playlist = ytlib.create_playlist(new_playlist_name)
+        else:
+            new_playlist = next(
+                playlist
+                for playlist in existing_playlists
+                if playlist.name == new_playlist_name
+            )
+
+        progress_controller.add_item(
             ProgressState.DOWNLOADING,
             next_video.id,
             ProgressController.ProgressItem(
