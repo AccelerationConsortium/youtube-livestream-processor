@@ -70,11 +70,9 @@ class YoutubeUtils:
 
         while request:
             response = request.execute()
-            print(response["items"])
             for item in response["items"]:
                 video_id = item["snippet"]["resourceId"]["videoId"]
                 title = item["snippet"]["title"]
-                print(f"  {title}: {video_id}")
                 videos.append(self.Video(video_id, title, playlist))
 
             request = self.youtube.playlistItems().list_next(request, response)

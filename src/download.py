@@ -109,6 +109,7 @@ if __name__ == "__main__":
         videos_to_download = [
             video for video in all_yt_videos if video.id in video_ids_to_download
         ]
+        print(f"Videos to download: {[video.title for video in videos_to_download]}")
         if len(videos_to_download) == 0:
             print("No more videos to download.")
             progress_controller.unlock_file()
