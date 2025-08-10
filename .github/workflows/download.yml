@@ -8,7 +8,7 @@ on:
 
 
 jobs:
-  ssh-with-input:
+  ssh:
     runs-on: ubuntu-latest
     steps:
       - name: Set up SSH
@@ -31,7 +31,7 @@ jobs:
             timeout { exit 1 }
           }
           expect "$ "
-          send "cd youtube-livestream-processor"
-          send "apptainer exec bash download.sh"
+          send "cd youtube-livestream-processor\r"
+          send "apptainer exec bash download.sh\r"
           expect "$ "
           END
