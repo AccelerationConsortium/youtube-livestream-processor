@@ -29,10 +29,17 @@ if __name__ == "__main__":
         video_id, video_properties = next_item
 
         # Process the video
-        VideoProcessor.process(
-            DOWNLOAD_DIR / video_properties.original_video_id,
-            PROCESSED_DIR / video_properties.new_video_name,
-        )
+        try:
+            VideoProcessor.process(
+                DOWNLOAD_DIR / f"{video_properties.original_video_name}.mp4",
+                PROCESSED_DIR / f"{video_properties.new_video_name}.mp4",
+            )
+        except Exception as e:
+            print(f"Error processing video {video_id}: {e}")
+            progress_controller.move_item(
+                ProgressState.PROCESSING, ProgressState.DOWNLOADED, video_id
+            )
+            continue
 
         progress_controller.move_item(
             ProgressState.PROCESSING, ProgressState.PROCESSED, video_id
