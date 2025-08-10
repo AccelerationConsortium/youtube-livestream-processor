@@ -31,6 +31,6 @@ jobs:
           }
           expect "$ "
           send "cd youtube-livestream-processor\r"
-          send "apptainer exec bash download.sh | tee download.out\r"
+          send "apptainer exec bash process.sh | tee process.out\r"
           expect "$ "
           END

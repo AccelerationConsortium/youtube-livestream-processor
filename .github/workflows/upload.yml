@@ -1,4 +1,4 @@
-name: Download
+name: Upload
 
 on:
   workflow_dispatch: 
@@ -31,6 +31,6 @@ jobs:
           }
           expect "$ "
           send "cd youtube-livestream-processor\r"
-          send "apptainer exec bash download.sh | tee download.out\r"
+          send "apptainer exec bash upload.sh | tee upload.out\r"
           expect "$ "
           END
