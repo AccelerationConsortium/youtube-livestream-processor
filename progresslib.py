@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from filelock import FileLock
 from enum import Enum
 from dataclasses import dataclass
@@ -14,7 +15,7 @@ class ProgressState(str, Enum):
 
 
 class ProgressController:
-    def __init__(self, progress_file_path):
+    def __init__(self, progress_file_path: Path):
         self.progress_file_path = progress_file_path
         self.lock = FileLock(progress_file_path.with_suffix(".lock"))
         self.default_progress = {
@@ -67,7 +68,7 @@ class ProgressController:
     def reset_progress(self):
         with self.lock:
             with open(self.progress_file_path, "w") as f:
-                json.dump(self.default_progress, f, cls=self.CustomEncoder)
+                json.dump(self.default_progress, f, cls=self.CustomEncoder, indent=4)
 
     def lock_file(self):
         self.lock.acquire()
@@ -96,7 +97,7 @@ class ProgressController:
             del progress_data[original_state][key]
 
             with open(self.progress_file_path, "w") as f:
-                json.dump(progress_data, f, cls=self.CustomEncoder)
+                json.dump(progress_data, f, cls=self.CustomEncoder, indent=4)
 
     def read_and_move_next_item(
         self, original_state: ProgressState, new_state: ProgressState
@@ -116,7 +117,7 @@ class ProgressController:
             del progress_data[original_state][key]
 
             with open(self.progress_file_path, "w") as f:
-                json.dump(progress_data, f, cls=self.CustomEncoder)
+                json.dump(progress_data, f, cls=self.CustomEncoder, indent=4)
 
         return key, value
 
