@@ -1,6 +1,6 @@
 from pathlib import Path
-from progresslib import ProgressController, ProgressState
-from yt_utils import YoutubeUtils
+from src.progresslib import ProgressController, ProgressState
+from src.yt_utils import YoutubeUtils
 from my_secrets import (
     YOUTUBE_CLIENT_ID,
     YOUTUBE_CLIENT_SECRET,
