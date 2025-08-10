@@ -95,6 +95,8 @@ if __name__ == "__main__":
         videos = ytlib.list_videos_in_playlist(playlist)
         all_yt_videos.extend(videos)
 
+    failed_downloads = []
+
     while True:
         progress_controller.lock_file()
         progress_log = progress_controller.load_progress()
@@ -113,7 +115,7 @@ if __name__ == "__main__":
         if len(videos_to_download) == 0:
             print("No more videos to download.")
             progress_controller.unlock_file()
-            exit(0)
+            break
         next_video = videos_to_download[0]
 
         # Create playlist if it doesn't exist
@@ -150,6 +152,12 @@ if __name__ == "__main__":
 
             login_google(page)
 
-            download_video(page, next_video)
+            try:
+                download_video(page, next_video)
+            except Exception as e:
+                failed_downloads.append(next_video)
 
             browser.close()
+
+    for video in failed_downloads:
+        progress_controller.remove_item(ProgressState.DOWNLOADING, video.id)
