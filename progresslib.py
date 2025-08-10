@@ -77,13 +77,10 @@ class ProgressController:
 
     def load_progress(self) -> dict[str, dict[str, ProgressItem]]:
         with self.lock:
-            return self._load_progress_unlocked()
-
-    def _load_progress_unlocked(self) -> dict[str, dict[str, ProgressItem]]:
-        if self.progress_file_path.exists():
-            with open(self.progress_file_path, "r") as f:
-                return json.load(f, object_hook=self.custom_decoder)
-        return {}
+            if self.progress_file_path.exists():
+                with open(self.progress_file_path, "r") as f:
+                    return json.load(f, object_hook=self.custom_decoder)
+            return {}
 
     def move_item(
         self, original_state: ProgressState, new_state: ProgressState, key: str
@@ -125,18 +122,13 @@ class ProgressController:
 
     def add_item(self, state: ProgressState, key: str, value: ProgressItem):
         with self.lock:
-            self._add_item_unlocked(state, key, value)
+            if self.progress_file_path.exists():
+                with open(self.progress_file_path, "r") as f:
+                    progress_data = json.load(f, object_hook=self.custom_decoder)
+            else:
+                progress_data = {}
 
-    def _add_item_unlocked(
-        self, state: ProgressState, key: str, value: ProgressItem
-    ) -> None:
-        if self.progress_file_path.exists():
-            with open(self.progress_file_path, "r") as f:
-                progress_data = json.load(f, object_hook=self.custom_decoder)
-        else:
-            progress_data = {}
+            progress_data.setdefault(state, {})[key] = value
 
-        progress_data.setdefault(state, {})[key] = value
-
-        with open(self.progress_file_path, "w") as f:
-            json.dump(progress_data, f, cls=self.CustomEncoder)
+            with open(self.progress_file_path, "w") as f:
+                json.dump(progress_data, f, cls=self.CustomEncoder, indent=4)

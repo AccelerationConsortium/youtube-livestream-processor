@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
     while True:
         progress_controller.lock_file()
-        progress_log = progress_controller._load_progress_unlocked()
+        progress_log = progress_controller.load_progress()
         existing_video_ids = [
             video_id
             for status in progress_log.keys()
