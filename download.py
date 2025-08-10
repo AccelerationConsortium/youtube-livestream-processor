@@ -124,7 +124,7 @@ if __name__ == "__main__":
             new_playlist = next(
                 playlist
                 for playlist in existing_playlists
-                if playlist.name == new_playlist_name
+                if playlist.title == new_playlist_name
             )
 
         progress_controller.add_item(

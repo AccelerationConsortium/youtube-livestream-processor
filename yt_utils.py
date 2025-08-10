@@ -5,6 +5,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from dataclasses import dataclass
 
+from typing import Optional
 
 YT_API_KEY = os.getenv("YT_API_KEY")
 
@@ -17,6 +18,7 @@ class YoutubeUtils:
         youtube_token_uri,
         youtube_client_id,
         youtube_client_secret,
+        channel_id,
     ):
         self.youtube = build(
             "youtube",
@@ -30,6 +32,7 @@ class YoutubeUtils:
                 scopes=["https://www.googleapis.com/auth/youtube.force-ssl"],
             ),
         )
+        self.channel_id = channel_id
 
     @dataclass
     class Playlist:
@@ -40,12 +43,12 @@ class YoutubeUtils:
     class Video:
         id: str
         title: str
-        playlist: "YoutubeUtils.Playlist"
+        playlist: Optional["YoutubeUtils.Playlist"] = None
 
     def get_playlists(self):
         playlists = []
         request = self.youtube.playlists().list(
-            part="snippet", mine=True, maxResults=50
+            part="snippet", channelId=self.channel_id, maxResults=50
         )
 
         while request:
@@ -53,7 +56,6 @@ class YoutubeUtils:
             for item in response.get("items", []):
                 playlist_id = item["id"]
                 title = item["snippet"]["title"]
-                print(f"{title}: {playlist_id}")
                 playlists.append(self.Playlist(playlist_id, title))
 
             request = self.youtube.playlists().list_next(request, response)
@@ -68,6 +70,7 @@ class YoutubeUtils:
 
         while request:
             response = request.execute()
+            print(response["items"])
             for item in response["items"]:
                 video_id = item["snippet"]["resourceId"]["videoId"]
                 title = item["snippet"]["title"]
@@ -125,7 +128,7 @@ class YoutubeUtils:
             else:
                 time.sleep(5)
 
-        return response
+        return self.Video(response["id"], title)
 
     def create_playlist(self, title, description="", privacy="public"):
         body = {
