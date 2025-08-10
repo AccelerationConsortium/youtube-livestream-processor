@@ -15,6 +15,7 @@ from my_secrets import (
     YOUTUBE_REFRESH_TOKEN,
     YOUTUBE_TOKEN,
     YOUTUBE_TOKEN_URI,
+    CHANNEL_ID,
 )
 
 # Set up TOTP for 2FA
@@ -85,6 +86,7 @@ if __name__ == "__main__":
         youtube_token_uri=YOUTUBE_TOKEN_URI,
         youtube_client_id=YOUTUBE_CLIENT_ID,
         youtube_client_secret=YOUTUBE_CLIENT_SECRET,
+        channel_id=CHANNEL_ID,
     )
 
     playlists = ytlib.get_playlists()
