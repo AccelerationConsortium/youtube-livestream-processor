@@ -4,10 +4,10 @@ from src.video_processor import VideoProcessor
 
 
 if __name__ == "__main__":
-    PROGRESS_FILE = Path(__file__).parent / "progress.json"
-    DOWNLOAD_DIR = Path(__file__).parent / "downloaded_videos"
-    PROCESSING_DIR = Path(__file__).parent / "processing_videos"
-    PROCESSED_DIR = Path(__file__).parent / "processed_videos"
+    PROGRESS_FILE = Path("progress.json")
+    DOWNLOAD_DIR = Path("downloaded_videos")
+    PROCESSING_DIR = Path("processing_videos")
+    PROCESSED_DIR = Path("processed_videos")
 
     progress_controller = ProgressController(PROGRESS_FILE)
 
