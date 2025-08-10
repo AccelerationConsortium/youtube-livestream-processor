@@ -121,10 +121,10 @@ if __name__ == "__main__":
                 original_video_name=ytlib.video_title_from_id(next_video.id),  # type: ignore
                 new_video_name=f"PROCESSED {ytlib.video_title_from_id(next_video.id)}",
                 original_playlist_name=next_video.playlist.title,
-                new_playlist_name=f"PROCESSED {next_video.playlist.title}",
+                new_playlist_name=new_playlist.title,
                 original_video_id=next_video.id,
                 original_playlist_id=next_video.playlist.id,
-                new_playlist_id=f"PROCESSED {next_video.playlist.id}",
+                new_playlist_id=new_playlist.id,
             ),
         )
         progress_controller.unlock_file()
