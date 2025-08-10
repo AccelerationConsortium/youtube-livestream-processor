@@ -48,16 +48,18 @@ class VideoProcessor:
         process.wait()
 
     @staticmethod
-    def process(file_path, outpath=None):
-        file_path_stem = Path(file_path).stem
+    def process(file_path: Path, outpath=None):
+        file_path_stem = file_path.stem
 
         if outpath == None:
-            outpath = Path(file_path).parent / f"{file_path_stem}_edited.mp4"
+            outpath = file_path.parent / f"{file_path_stem}_edited.mp4"
 
-        v1_path = file_path / f".{file_path_stem}_v1_timeline.json"
+        v1_path = file_path.parent / f".{file_path_stem}_v1_timeline.json"
         VideoProcessor._generate_v1(file_path, v1_path)
 
-        overlayed_video_path = file_path / f".{file_path_stem}_overlayed_video.mp4"
+        overlayed_video_path = (
+            file_path.parent / f".{file_path_stem}_overlayed_video.mp4"
+        )
         VideoProcessor._edit_add_overlay(
             video_path=file_path,
             timeline_path=v1_path,
@@ -69,8 +71,8 @@ class VideoProcessor:
             output_path=outpath,
         )
 
-        os.remove(v1_path)
-        os.remove(overlayed_video_path)
+        v1_path.unlink()
+        overlayed_video_path.unlink()
 
         return outpath
 
@@ -195,7 +197,7 @@ class VideoProcessor:
             else:
                 filter_complex += f"[v{i}][1:v] overlay=0:0:enable='between(t,{start},{stop})' [v{i+1}]; "
 
-        overlay_path = Path(__file__).parent / "overlay.png"
+        overlay_path = "resources/overlay.png"
 
         process = subprocess.Popen(
             [
