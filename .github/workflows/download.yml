@@ -31,4 +31,6 @@ jobs:
             timeout { exit 1 }
           }
           interact
+          cd youtube-livestream-processor
+          apptainer exec bash download.sh
           END
