@@ -11,8 +11,8 @@ from my_secrets import (
 )
 
 if __name__ == "__main__":
-    PROGRESS_FILE = Path(__file__).parent / "progress.json"
-    PROCESSED_DIR = Path(__file__).parent / "processed_videos"
+    PROGRESS_FILE = Path("progress.json")
+    PROCESSED_DIR = Path("processed_videos")
 
     progress_controller = ProgressController(PROGRESS_FILE)
     process_log = progress_controller.load_progress()

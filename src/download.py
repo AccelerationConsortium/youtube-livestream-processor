@@ -21,8 +21,8 @@ from my_secrets import (
 # Set up TOTP for 2FA
 totp = pyotp.TOTP(TOTP_SECRET)
 
-OUTPUT_DIR = Path(__file__).parent / "downloaded_videos"
-PROGRESS_FILE = Path(__file__).parent / "progress.json"
+OUTPUT_DIR = Path("downloaded_videos")
+PROGRESS_FILE = Path("progress.json")
 progress_controller = ProgressController(PROGRESS_FILE)
 
 
