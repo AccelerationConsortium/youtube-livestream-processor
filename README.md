@@ -146,3 +146,7 @@ Downloads multiple videos from a YouTube playlist.
 - The `get_video_metadata` function uses caching to improve performance
 - Videos are downloaded using yt-dlp which supports a wide range of formats and quality options
 - The YouTube Data API tools require OAuth credentials which can be obtained from the Google Cloud Console
+
+### Additional Documentation
+
+For detailed usage examples, advanced use cases, and troubleshooting, see [USAGE_EXAMPLES.md](USAGE_EXAMPLES.md)
