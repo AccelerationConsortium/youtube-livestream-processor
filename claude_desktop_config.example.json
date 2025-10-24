@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "youtube-downloader": {
+      "command": "python",
+      "args": [
+        "/absolute/path/to/youtube-livestream-processor/youtube_download_mcp.py"
+      ],
+      "env": {
+        "YOUTUBE_TOKEN": "your-youtube-oauth-token",
+        "YOUTUBE_REFRESH_TOKEN": "your-refresh-token",
+        "YOUTUBE_TOKEN_URI": "https://oauth2.googleapis.com/token",
+        "YOUTUBE_CLIENT_ID": "your-client-id",
+        "YOUTUBE_CLIENT_SECRET": "your-client-secret"
+      }
+    }
+  }
+}
