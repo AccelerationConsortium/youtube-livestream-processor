@@ -88,7 +88,7 @@ The server will listen for MCP requests over stdio (standard input/output).
   "metadata": {
     "id": "dQw4w9WgXcQ",
     "title": "Rick Astley - Never Gonna Give You Up",
-    "description": "The official video for "Never Gonna Give You Up"...",
+    "description": "The official video for Never Gonna Give You Up...",
     "duration": 212,
     "uploader": "Rick Astley",
     "upload_date": "20091025",
