@@ -1,13 +1,13 @@
 """
 YouTube Download MCP Server using token.pickle authentication.
 
-This MCP server provides tools for downloading YouTube videos owned by 
+This MCP server provides tools for accessing YouTube videos owned by 
 the resource owner using token.pickle for authentication.
 """
 
+import base64
 import os
 import pickle
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -19,31 +19,44 @@ from mcp.server import FastMCP
 # Initialize FastMCP server
 mcp = FastMCP("YouTube Downloader")
 
-def get_authenticated_service(token_pickle_path: str = "token.pickle"):
+def get_authenticated_service():
     """
-    Load credentials from token.pickle and return authenticated YouTube service.
+    Load credentials from token.pickle (file or environment variable) and return authenticated YouTube service.
     
-    Args:
-        token_pickle_path: Path to the token.pickle file
-        
+    Supports two methods:
+    1. TOKEN_PICKLE_BASE64 environment variable containing base64-encoded pickle data
+    2. token.pickle file in current directory
+    
     Returns:
         Authenticated YouTube API service
     """
     creds = None
     
-    if os.path.exists(token_pickle_path):
-        with open(token_pickle_path, 'rb') as token:
+    # Try loading from environment variable first
+    token_pickle_b64 = os.environ.get('TOKEN_PICKLE_BASE64')
+    if token_pickle_b64:
+        try:
+            pickle_data = base64.b64decode(token_pickle_b64)
+            creds = pickle.loads(pickle_data)
+        except Exception as e:
+            raise ValueError(f"Failed to load credentials from TOKEN_PICKLE_BASE64: {e}")
+    elif os.path.exists("token.pickle"):
+        # Fall back to file-based loading
+        with open("token.pickle", 'rb') as token:
             creds = pickle.load(token)
+    else:
+        raise ValueError("No token.pickle found. Set TOKEN_PICKLE_BASE64 env var or provide token.pickle file.")
     
     # Refresh credentials if expired
     if creds and creds.expired and creds.refresh_token:
         creds.refresh(Request())
-        # Save refreshed credentials
-        with open(token_pickle_path, 'wb') as token:
-            pickle.dump(creds, token)
+        # Save refreshed credentials back if using file
+        if not token_pickle_b64 and os.path.exists("token.pickle"):
+            with open("token.pickle", 'wb') as token:
+                pickle.dump(creds, token)
     
     if not creds or not creds.valid:
-        raise ValueError("Invalid or missing token.pickle. Please authenticate first.")
+        raise ValueError("Invalid credentials. Please authenticate first.")
     
     return build('youtube', 'v3', credentials=creds)
 
@@ -51,22 +64,24 @@ def get_authenticated_service(token_pickle_path: str = "token.pickle"):
 @mcp.tool()
 def download_video(
     video_id: str,
-    output_dir: str = "./downloads",
-    format: str = "best"
+    output_dir: str = "./downloads"
 ) -> dict[str, Any]:
     """
-    Download a YouTube video owned by the authenticated user.
+    Get download information for a YouTube video owned by the authenticated user.
     
     Uses token.pickle for authentication to access videos owned by the resource owner.
-    Downloads the video using yt-dlp.
+    Returns the video metadata and YouTube Studio download URL.
+    
+    Note: To actually download the video file, you need to:
+    1. Use the YouTube Studio interface at: https://studio.youtube.com/video/{video_id}/edit/
+    2. Click Options > Download
     
     Args:
         video_id: YouTube video ID or URL
-        output_dir: Directory to save the downloaded video
-        format: Video format/quality (e.g., 'best', 'bestvideo+bestaudio', '720p')
+        output_dir: Directory where the video should be saved (informational)
         
     Returns:
-        Dictionary with download status and file information
+        Dictionary with video information and download instructions
     """
     try:
         # Verify authentication
@@ -74,7 +89,7 @@ def download_video(
         
         # Get video details to verify ownership/access
         response = youtube.videos().list(
-            part='snippet,status',
+            part='snippet,status,contentDetails',
             id=video_id
         ).execute()
         
@@ -87,55 +102,29 @@ def download_video(
         
         video_info = response['items'][0]
         video_title = video_info['snippet']['title']
+        video_status = video_info['status']['uploadStatus']
+        duration = video_info['contentDetails']['duration']
         
-        # Ensure we have a full URL
-        if not video_id.startswith("http"):
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
-        else:
-            video_url = video_id
-        
-        # Create output directory
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-        
-        # Download using yt-dlp
-        output_template = str(output_path / "%(title)s.%(ext)s")
-        cmd = [
-            "yt-dlp",
-            "-f", format,
-            "-o", output_template,
-            video_url
-        ]
-        
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        studio_url = f"https://studio.youtube.com/video/{video_id}/edit/"
         
         return {
             "success": True,
             "video_id": video_id,
             "title": video_title,
+            "upload_status": video_status,
+            "duration": duration,
+            "studio_download_url": studio_url,
             "output_dir": output_dir,
-            "format": format,
-            "message": f"Successfully downloaded: {video_title}"
+            "message": f"Video info retrieved: {video_title}",
+            "instructions": "To download: Go to YouTube Studio URL, click Options > Download"
         }
         
-    except subprocess.CalledProcessError as e:
-        return {
-            "success": False,
-            "video_id": video_id,
-            "error": f"Download failed: {e.stderr}",
-            "message": "Failed to download video"
-        }
     except Exception as e:
         return {
             "success": False,
             "video_id": video_id,
             "error": str(e),
-            "message": "Failed to download video"
+            "message": "Failed to get video information"
         }
 
 
