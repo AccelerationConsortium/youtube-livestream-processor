@@ -70,32 +70,38 @@ def get_authenticated_service():
 
 
 @mcp.tool()
-def get_video_download_url(
+def download_video(
     video_id: str,
-    output_dir: str = "./downloads"
+    output_dir: str = "./downloads",
+    metadata_only: bool = False,
+    email: Optional[str] = None,
+    password: Optional[str] = None,
+    totp_secret: Optional[str] = None,
+    headless: bool = True
 ) -> dict[str, Any]:
     """
-    Get download URL and metadata for a YouTube video owned by the authenticated user.
+    Download a YouTube video or get its metadata and download URL.
     
     Uses token.pickle for authentication to access videos owned by the resource owner.
-    Returns the video metadata and YouTube Studio download URL. Does not actually download the video.
     
-    Note: To actually download the video file, you can either:
-    1. Use the download_video tool for automated download (requires Playwright)
-    2. Manually visit the YouTube Studio URL and click Options > Download
+    By default, attempts to download the video using Playwright browser automation.
+    Set metadata_only=True to only retrieve metadata and YouTube Studio download URL.
     
     Args:
         video_id: YouTube video ID or URL
-        output_dir: Directory where the video should be saved (informational)
+        output_dir: Directory to save the downloaded video
+        metadata_only: If True, only return metadata and URL without downloading (default: False)
+        email: Google account email for Playwright (optional, uses GOOGLE_EMAIL env var)
+        password: Google account password for Playwright (optional, uses GOOGLE_PASSWORD env var)
+        totp_secret: TOTP secret for 2FA (optional, uses GOOGLE_TOTP_SECRET env var)
+        headless: Run browser in headless mode when downloading (default: True)
         
     Returns:
-        Dictionary with video information and download URL
+        Dictionary with video information and download status/URL
     """
     try:
-        # Verify authentication
+        # Get video metadata first
         youtube = get_authenticated_service()
-        
-        # Get video details to verify ownership/access
         response = youtube.videos().list(
             part='snippet,status,contentDetails',
             id=video_id
@@ -112,27 +118,137 @@ def get_video_download_url(
         video_title = video_info['snippet']['title']
         video_status = video_info['status']['uploadStatus']
         duration = video_info['contentDetails']['duration']
-        
         studio_url = f"https://studio.youtube.com/video/{video_id}/edit/"
         
-        return {
-            "success": True,
-            "video_id": video_id,
-            "title": video_title,
-            "upload_status": video_status,
-            "duration": duration,
-            "studio_download_url": studio_url,
-            "output_dir": output_dir,
-            "message": f"Video info retrieved: {video_title}",
-            "instructions": "To download: Go to YouTube Studio URL, click Options > Download"
-        }
+        # If metadata_only, return early with metadata and URL
+        if metadata_only:
+            return {
+                "success": True,
+                "video_id": video_id,
+                "title": video_title,
+                "upload_status": video_status,
+                "duration": duration,
+                "studio_download_url": studio_url,
+                "output_dir": output_dir,
+                "metadata_only": True,
+                "message": f"Video info retrieved: {video_title}",
+                "instructions": "To download: Call again with metadata_only=False or visit YouTube Studio URL"
+            }
         
+        # Otherwise, attempt to download using Playwright
+        if not PLAYWRIGHT_AVAILABLE:
+            return {
+                "success": False,
+                "error": "Playwright not available. Install with: pip install playwright && playwright install chromium",
+                "message": "Set metadata_only=True for metadata-only access",
+                "video_id": video_id,
+                "title": video_title
+            }
+        
+        # Get credentials from environment or parameters
+        email = email or os.environ.get('GOOGLE_EMAIL')
+        password = password or os.environ.get('GOOGLE_PASSWORD')
+        totp_secret = totp_secret or os.environ.get('GOOGLE_TOTP_SECRET')
+        
+        if not email or not password:
+            return {
+                "success": False,
+                "error": "Missing Google credentials. Set GOOGLE_EMAIL and GOOGLE_PASSWORD environment variables.",
+                "message": "Set metadata_only=True for metadata-only access",
+                "video_id": video_id,
+                "title": video_title
+            }
+        
+        # Create output directory
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        # Use Playwright to download
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=headless)
+            context = browser.new_context(accept_downloads=True)
+            page = context.new_page()
+            
+            # Login to Google
+            try:
+                page.goto("https://accounts.google.com/", timeout=15000)
+                page.get_by_role("textbox", name="Email or phone").fill(email)
+                page.get_by_role("button", name="Next").click()
+                page.wait_for_selector('input[name="Passwd"]', timeout=10000)
+                page.get_by_role("textbox", name="Enter your password").fill(password)
+                page.get_by_role("button", name="Next").click()
+                
+                # Handle TOTP if needed
+                if totp_secret:
+                    try:
+                        page.get_by_role(
+                            "link", name="Get a verification code from the Google Authenticator app"
+                        ).wait_for(timeout=5000)
+                        page.get_by_role(
+                            "link", name="Get a verification code from the Google Authenticator app"
+                        ).click()
+                        page.wait_for_selector('input[name="totpPin"]', timeout=5000)
+                        totp = pyotp.TOTP(totp_secret)
+                        page.fill('input[name="totpPin"]', totp.now())
+                        page.get_by_role("button", name="Next").click()
+                    except PlaywrightTimeoutError:
+                        pass  # No TOTP prompt
+                
+                # Wait for login to complete
+                page.wait_for_timeout(2000)
+                
+            except Exception as e:
+                browser.close()
+                return {
+                    "success": False,
+                    "error": f"Login failed: {str(e)}",
+                    "message": "Check credentials or set metadata_only=True",
+                    "video_id": video_id,
+                    "title": video_title
+                }
+            
+            # Navigate to YouTube Studio and download
+            try:
+                page.goto(f"https://studio.youtube.com/video/{video_id}/edit/", timeout=15000)
+                page.get_by_role("button", name="Options").wait_for(timeout=5000)
+                page.get_by_role("button", name="Options").click()
+                
+                page.get_by_role("menuitem", name="Download").wait_for(timeout=5000)
+                with page.expect_download(timeout=30000) as download_info:
+                    page.get_by_role("menuitem", name="Download").click()
+                
+                download = download_info.value
+                file_path = output_path / f"{video_title}.mp4"
+                download.save_as(str(file_path))
+                
+                browser.close()
+                
+                return {
+                    "success": True,
+                    "video_id": video_id,
+                    "title": video_title,
+                    "file_path": str(file_path),
+                    "output_dir": output_dir,
+                    "metadata_only": False,
+                    "message": f"Successfully downloaded: {video_title}"
+                }
+                
+            except Exception as e:
+                browser.close()
+                return {
+                    "success": False,
+                    "video_id": video_id,
+                    "title": video_title,
+                    "error": f"Download failed: {str(e)}",
+                    "message": "YouTube Studio may be inaccessible. Set metadata_only=True for metadata."
+                }
+    
     except Exception as e:
         return {
             "success": False,
             "video_id": video_id,
             "error": str(e),
-            "message": "Failed to get video information"
+            "message": "Failed to process video request"
         }
 
 
@@ -287,161 +403,6 @@ def list_playlist_videos(playlist_id: str) -> dict[str, Any]:
             "message": "Failed to list playlist videos"
         }
 
-
-@mcp.tool()
-def download_video(
-    video_id: str,
-    output_dir: str = "./downloads",
-    email: Optional[str] = None,
-    password: Optional[str] = None,
-    totp_secret: Optional[str] = None,
-    headless: bool = True
-) -> dict[str, Any]:
-    """
-    Download a YouTube video using Playwright to automate YouTube Studio.
-    
-    This tool uses browser automation to actually download video files.
-    Falls back gracefully if Playwright is not available or credentials are missing.
-    
-    Requires environment variables or parameters:
-    - GOOGLE_EMAIL or email parameter
-    - GOOGLE_PASSWORD or password parameter
-    - GOOGLE_TOTP_SECRET or totp_secret parameter (for 2FA)
-    
-    Args:
-        video_id: YouTube video ID
-        output_dir: Directory to save the downloaded video
-        email: Google account email (optional, uses GOOGLE_EMAIL env var if not provided)
-        password: Google account password (optional, uses GOOGLE_PASSWORD env var if not provided)
-        totp_secret: TOTP secret for 2FA (optional, uses GOOGLE_TOTP_SECRET env var if not provided)
-        headless: Run browser in headless mode (default: True)
-        
-    Returns:
-        Dictionary with download status and file path
-    """
-    if not PLAYWRIGHT_AVAILABLE:
-        return {
-            "success": False,
-            "error": "Playwright not available. Install with: pip install playwright && playwright install chromium",
-            "message": "Use get_video_download_url instead for metadata-only access"
-        }
-    
-    # Get credentials from environment or parameters
-    email = email or os.environ.get('GOOGLE_EMAIL')
-    password = password or os.environ.get('GOOGLE_PASSWORD')
-    totp_secret = totp_secret or os.environ.get('GOOGLE_TOTP_SECRET')
-    
-    if not email or not password:
-        return {
-            "success": False,
-            "error": "Missing Google credentials. Set GOOGLE_EMAIL and GOOGLE_PASSWORD environment variables.",
-            "message": "Use get_video_download_url instead for metadata-only access"
-        }
-    
-    try:
-        # First get video info via API
-        youtube = get_authenticated_service()
-        response = youtube.videos().list(
-            part='snippet',
-            id=video_id
-        ).execute()
-        
-        if not response.get('items'):
-            return {
-                "success": False,
-                "error": "Video not found or not accessible",
-                "video_id": video_id
-            }
-        
-        video_title = response['items'][0]['snippet']['title']
-        
-        # Create output directory
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-        
-        # Use Playwright to download
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=headless)
-            context = browser.new_context(accept_downloads=True)
-            page = context.new_page()
-            
-            # Login to Google
-            try:
-                page.goto("https://accounts.google.com/", timeout=15000)
-                page.get_by_role("textbox", name="Email or phone").fill(email)
-                page.get_by_role("button", name="Next").click()
-                page.wait_for_selector('input[name="Passwd"]', timeout=10000)
-                page.get_by_role("textbox", name="Enter your password").fill(password)
-                page.get_by_role("button", name="Next").click()
-                
-                # Handle TOTP if needed
-                if totp_secret:
-                    try:
-                        page.get_by_role(
-                            "link", name="Get a verification code from the Google Authenticator app"
-                        ).wait_for(timeout=5000)
-                        page.get_by_role(
-                            "link", name="Get a verification code from the Google Authenticator app"
-                        ).click()
-                        page.wait_for_selector('input[name="totpPin"]', timeout=5000)
-                        totp = pyotp.TOTP(totp_secret)
-                        page.fill('input[name="totpPin"]', totp.now())
-                        page.get_by_role("button", name="Next").click()
-                    except PlaywrightTimeoutError:
-                        pass  # No TOTP prompt
-                
-                # Wait for login to complete
-                page.wait_for_timeout(2000)
-                
-            except Exception as e:
-                browser.close()
-                return {
-                    "success": False,
-                    "error": f"Login failed: {str(e)}",
-                    "message": "Check credentials or use download_video for metadata-only access"
-                }
-            
-            # Navigate to YouTube Studio and download
-            try:
-                page.goto(f"https://studio.youtube.com/video/{video_id}/edit/", timeout=15000)
-                page.get_by_role("button", name="Options").wait_for(timeout=5000)
-                page.get_by_role("button", name="Options").click()
-                
-                page.get_by_role("menuitem", name="Download").wait_for(timeout=5000)
-                with page.expect_download(timeout=30000) as download_info:
-                    page.get_by_role("menuitem", name="Download").click()
-                
-                download = download_info.value
-                file_path = output_path / f"{video_title}.mp4"
-                download.save_as(str(file_path))
-                
-                browser.close()
-                
-                return {
-                    "success": True,
-                    "video_id": video_id,
-                    "title": video_title,
-                    "file_path": str(file_path),
-                    "output_dir": output_dir,
-                    "message": f"Successfully downloaded: {video_title}"
-                }
-                
-            except Exception as e:
-                browser.close()
-                return {
-                    "success": False,
-                    "video_id": video_id,
-                    "error": f"Download failed: {str(e)}",
-                    "message": "YouTube Studio may be inaccessible or video not downloadable. Use get_video_download_url for metadata."
-                }
-    
-    except Exception as e:
-        return {
-            "success": False,
-            "video_id": video_id,
-            "error": str(e),
-            "message": "Failed to download video"
-        }
 
 
 if __name__ == "__main__":
