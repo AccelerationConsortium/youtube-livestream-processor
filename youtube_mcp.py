@@ -70,26 +70,26 @@ def get_authenticated_service():
 
 
 @mcp.tool()
-def download_video(
+def get_video_download_url(
     video_id: str,
     output_dir: str = "./downloads"
 ) -> dict[str, Any]:
     """
-    Get download information for a YouTube video owned by the authenticated user.
+    Get download URL and metadata for a YouTube video owned by the authenticated user.
     
     Uses token.pickle for authentication to access videos owned by the resource owner.
-    Returns the video metadata and YouTube Studio download URL.
+    Returns the video metadata and YouTube Studio download URL. Does not actually download the video.
     
-    Note: To actually download the video file, you need to:
-    1. Use the YouTube Studio interface at: https://studio.youtube.com/video/{video_id}/edit/
-    2. Click Options > Download
+    Note: To actually download the video file, you can either:
+    1. Use the download_video tool for automated download (requires Playwright)
+    2. Manually visit the YouTube Studio URL and click Options > Download
     
     Args:
         video_id: YouTube video ID or URL
         output_dir: Directory where the video should be saved (informational)
         
     Returns:
-        Dictionary with video information and download instructions
+        Dictionary with video information and download URL
     """
     try:
         # Verify authentication
@@ -289,7 +289,7 @@ def list_playlist_videos(playlist_id: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def download_video_playwright(
+def download_video(
     video_id: str,
     output_dir: str = "./downloads",
     email: Optional[str] = None,
@@ -300,8 +300,8 @@ def download_video_playwright(
     """
     Download a YouTube video using Playwright to automate YouTube Studio.
     
-    This is an optional method that uses browser automation to download videos.
-    Falls back to download_video if Playwright is not available or credentials are missing.
+    This tool uses browser automation to actually download video files.
+    Falls back gracefully if Playwright is not available or credentials are missing.
     
     Requires environment variables or parameters:
     - GOOGLE_EMAIL or email parameter
@@ -323,7 +323,7 @@ def download_video_playwright(
         return {
             "success": False,
             "error": "Playwright not available. Install with: pip install playwright && playwright install chromium",
-            "message": "Use download_video instead for metadata-only access"
+            "message": "Use get_video_download_url instead for metadata-only access"
         }
     
     # Get credentials from environment or parameters
@@ -335,7 +335,7 @@ def download_video_playwright(
         return {
             "success": False,
             "error": "Missing Google credentials. Set GOOGLE_EMAIL and GOOGLE_PASSWORD environment variables.",
-            "message": "Use download_video instead for metadata-only access"
+            "message": "Use get_video_download_url instead for metadata-only access"
         }
     
     try:
@@ -432,7 +432,7 @@ def download_video_playwright(
                     "success": False,
                     "video_id": video_id,
                     "error": f"Download failed: {str(e)}",
-                    "message": "YouTube Studio may be inaccessible or video not downloadable. Use download_video for metadata."
+                    "message": "YouTube Studio may be inaccessible or video not downloadable. Use get_video_download_url for metadata."
                 }
     
     except Exception as e:
