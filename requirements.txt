@@ -9,6 +9,7 @@ googleapis-common-protos==1.70.0
 greenlet==3.2.3
 httplib2==0.22.0
 idna==3.10
+mcp>=1.10.0
 playwright==1.54.0
 proto-plus==1.26.1
 protobuf==6.31.1
