@@ -195,7 +195,7 @@ class VideoProcessor:
             else:
                 filter_complex += f"[v{i}][1:v] overlay=0:0:enable='between(t,{start},{stop})' [v{i+1}]; "
 
-        overlay_path = Path(__file__).parent / "overlay.png"
+        overlay_path = Path(__file__).parent / "resources" / "overlay.png"
 
         process = subprocess.Popen(
             [
