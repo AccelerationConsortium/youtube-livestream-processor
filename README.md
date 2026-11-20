@@ -29,7 +29,6 @@ The processing stage requires an NVIDIA GPU because `_edit_add_overlay` uses `h2
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-python -m pip install filelock pyyaml auto-editor yt-dlp
 python -m playwright install chromium
 ```
 

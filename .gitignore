@@ -208,5 +208,6 @@ __marimo__/
 
 downloaded_videos/
 processed_videos/
+my_secrets.py
 
 .vscode/
