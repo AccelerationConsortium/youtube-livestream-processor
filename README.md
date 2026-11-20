@@ -32,7 +32,7 @@ python -m pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-Copy `my_secrets_example.py` to `my_secrets.py`, then fill in the YouTube API credentials and Google account fields. Do not commit `my_secrets.py`; it contains credentials.
+Copy `my_secrets_example.py` to `my_secrets.py`, then fill in the YouTube API credentials and Google account fields. Do not commit `my_secrets.py` (add it to `.gitignore` to avoid accidental commits); it contains credentials.
 
 Initialize the progress file before the first run:
 
