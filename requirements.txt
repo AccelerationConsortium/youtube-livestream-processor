@@ -21,7 +21,7 @@ requests==2.32.4
 rsa==4.9.1
 typing_extensions==4.14.1
 uritemplate==4.2.0
-urllib3==2.5.0
+urllib3==2.8.0
 filelock==4.2.12
 PyYAML==6.0.3
 auto-editor==29.3.1
